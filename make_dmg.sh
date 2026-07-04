@@ -66,6 +66,23 @@ if [ -n "$DEV_ID" ]; then
     codesign --sign "$DEV_ID" --timestamp "$DMG_NAME" 2>/dev/null && echo "✍️  sign DMG ด้วย Developer ID"
 fi
 
+# Notarize + staple (ทำให้เครื่องอื่นเปิดได้โดยไม่มีคำเตือนความปลอดภัย)
+# ต้องมี credentials profile ชื่อ "whisperapp-notary" (สร้างครั้งเดียวด้วย:
+#   xcrun notarytool store-credentials "whisperapp-notary" --apple-id <apple-id> --team-id DYJAX3728R)
+NOTARY_PROFILE="whisperapp-notary"
+if xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+    echo "📤 ส่ง notarize กับ Apple (อาจใช้เวลา 1-5 นาที)..."
+    if xcrun notarytool submit "$DMG_NAME" --keychain-profile "$NOTARY_PROFILE" --wait; then
+        xcrun stapler staple "$DMG_NAME"
+        echo "✅ Notarized + stapled — เปิดบนเครื่องอื่นได้โดยไม่มีคำเตือน"
+    else
+        echo "⚠️  Notarize ไม่ผ่าน — ดู log ด้วย: xcrun notarytool log <submission-id> --keychain-profile $NOTARY_PROFILE"
+    fi
+else
+    echo "⚠️  ข้าม notarize — ยังไม่มี credentials profile '$NOTARY_PROFILE'"
+    echo "   สร้างครั้งเดียว: xcrun notarytool store-credentials \"$NOTARY_PROFILE\" --apple-id <apple-id> --team-id DYJAX3728R"
+fi
+
 echo ""
 echo "✅ เสร็จ: $DMG_NAME"
 ls -lh "$DMG_NAME"

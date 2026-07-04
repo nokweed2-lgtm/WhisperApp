@@ -31,7 +31,7 @@ DEV_ID=$(security find-identity -v -p codesigning "$KEYCHAIN" 2>/dev/null | grep
 
 if [ -n "$DEV_ID" ]; then
     echo "✍️  Code signing ด้วย Developer ID: $DEV_ID"
-    codesign --force --deep --options runtime \
+    codesign --force --deep --options runtime --timestamp \
         --entitlements WhisperApp.entitlements \
         --sign "$DEV_ID" "$APP_BUNDLE"
 else

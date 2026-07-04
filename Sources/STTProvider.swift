@@ -53,7 +53,7 @@ enum STTSettings {
     private static let providerKey = "stt.provider"
 
     static var providerID: String {
-        get { defaults.string(forKey: providerKey) ?? "elevenlabs" }
+        get { defaults.string(forKey: providerKey) ?? "groq" }
         set { defaults.set(newValue, forKey: providerKey) }
     }
 

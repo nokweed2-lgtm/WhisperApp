@@ -55,10 +55,10 @@ struct HotkeyConfig: Codable, Equatable {
     }
 
     static let `default` = HotkeyConfig(
-        keyCode: UInt32(kVK_Space),
-        modifiers: UInt(NSEvent.ModifierFlags.control.rawValue | NSEvent.ModifierFlags.option.rawValue),
-        isHoldMode: false,
-        isModifierOnly: false
+        keyCode: kVK_Function,  // Fn
+        modifiers: UInt(NSEvent.ModifierFlags.function.rawValue),
+        isHoldMode: true,
+        isModifierOnly: true
     )
 }
 
@@ -72,11 +72,15 @@ class HotkeyManager {
     private var config: HotkeyConfig
     private var isHolding = false
     private var modifierKeyDown = false  // for modifier-only hotkeys
+    private var lastModifierPress: TimeInterval = 0  // for double-tap toggle
+    private let doubleTapInterval: TimeInterval = 0.4
 
     /// Called on activation (toggle: flip recording; hold: start recording)
     var onKeyDown: (() -> Void)?
     /// Called on deactivation (hold mode: stop recording; modifier-only: key released)
     var onKeyUp: (() -> Void)?
+    /// Returns true while recording — lets toggle mode stop with a single tap (start still needs double-tap)
+    var isActive: (() -> Bool)?
 
     private let defaultsKey = "hotkey.config"
 
@@ -173,7 +177,22 @@ class HotkeyManager {
         if isDown && !modifierKeyDown {
             // Modifier key pressed
             modifierKeyDown = true
-            onKeyDown?()
+            if config.isHoldMode {
+                onKeyDown?()
+            } else if isActive?() == true {
+                // Toggle mode, currently recording: single tap stops
+                lastModifierPress = 0
+                onKeyDown?()
+            } else {
+                // Toggle mode, idle: require double-tap (e.g., Fn Fn) to avoid accidental triggers
+                let now = ProcessInfo.processInfo.systemUptime
+                if now - lastModifierPress < doubleTapInterval {
+                    lastModifierPress = 0
+                    onKeyDown?()
+                } else {
+                    lastModifierPress = now
+                }
+            }
         } else if !isDown && modifierKeyDown {
             // Modifier key released — only matters for hold mode
             modifierKeyDown = false

@@ -5,21 +5,12 @@ struct SettingsView: View {
     @State private var hotkeyConfig = HotkeyManager.shared.currentConfig
     @State private var isRecordingHotkey = false
 
-    // STT (multi-provider — transcription)
-    @State private var sttProviderID = STTSettings.providerID
-    @State private var sttKey = ""
-    @State private var sttModel = ""
-    @State private var sttEndpoint = ""
-    @State private var sttMsg = ""
-    private var sttProvider: STTProvider { STTRegistry.provider(id: sttProviderID) }
+    // Groq — single key used for both STT and AI correction
+    @State private var groqKey = ""
+    @State private var groqMsg = ""
 
-    // LLM (multi-provider — text correction)
-    @State private var providerID = LLMSettings.providerID
-    @State private var llmKey = ""
-    @State private var llmModel = ""
-    @State private var llmEndpoint = ""
-    @State private var llmMsg = ""
-    private var provider: LLMProvider { LLMRegistry.provider(id: providerID) }
+    private var sttProvider: STTProvider { STTRegistry.provider(id: "groq") }
+    private var llmProvider: LLMProvider { LLMRegistry.provider(id: "groq") }
 
     var body: some View {
         ScrollView {
@@ -52,7 +43,7 @@ struct SettingsView: View {
                             HotkeyManager.shared.updateConfig(hotkeyConfig)
                         }
 
-                    Text("Toggle mode: press to start, press again to stop · Hold mode: press and hold to record")
+                    Text("Toggle mode: double-tap to start, single tap to stop (modifier keys like Fn) · Hold mode: press and hold to record")
                         .font(.caption2).foregroundColor(.secondary)
                 }
                 .onChange(of: hotkeyConfig.keyCode) { _ in HotkeyManager.shared.updateConfig(hotkeyConfig) }
@@ -60,71 +51,24 @@ struct SettingsView: View {
 
                 Divider()
 
-                // ── STT (transcription) ──
+                // ── Groq (STT + AI correction) ──
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Cloud STT (choose provider)", systemImage: "waveform")
+                    Label("Groq API Key", systemImage: "key.fill")
                         .font(.subheadline).bold()
 
-                    Picker("Provider", selection: $sttProviderID) {
-                        ForEach(STTRegistry.all) { p in Text(p.name).tag(p.id) }
-                    }
-                    .onChange(of: sttProviderID) { _ in loadSTT() }
+                    Text("Used for both transcription (\(sttProvider.defaultModel)) and AI correction (\(llmProvider.defaultModel))")
+                        .font(.caption).foregroundColor(.secondary)
 
-                    Text("API Key").font(.caption).foregroundColor(.secondary)
-                    SecureField("\(sttProvider.name) API key…", text: $sttKey)
+                    SecureField("gsk_…", text: $groqKey)
                         .textFieldStyle(.roundedBorder)
-
-                    Text("Model").font(.caption).foregroundColor(.secondary)
-                    TextField(sttProvider.defaultModel.isEmpty ? "Model name…" : sttProvider.defaultModel,
-                              text: $sttModel)
-                        .textFieldStyle(.roundedBorder)
-
-                    Text("Endpoint").font(.caption).foregroundColor(.secondary)
-                    TextField(sttProvider.defaultEndpoint.isEmpty ? "https://…" : sttProvider.defaultEndpoint,
-                              text: $sttEndpoint)
-                        .textFieldStyle(.roundedBorder).font(.caption)
 
                     HStack {
-                        Button("Save") { saveSTT() }.buttonStyle(.borderedProminent)
-                        Button("Test") { testSTT() }
-                        if !sttMsg.isEmpty { Text(sttMsg).font(.caption) }
+                        Button("Save") { saveKey() }.buttonStyle(.borderedProminent)
+                        Button("Test") { testKey() }
+                        if !groqMsg.isEmpty { Text(groqMsg).font(.caption) }
                     }
-                    Text("Leave Model/Endpoint blank to use defaults · Set env var (\(sttProvider.envKey)) in ~/.zshrc to skip entering a key")
-                        .font(.caption2).foregroundColor(.secondary)
-                }
 
-                Divider()
-
-                // ── LLM (text correction) ──
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("AI Correction (choose provider)", systemImage: "sparkles")
-                        .font(.subheadline).bold()
-
-                    Picker("Provider", selection: $providerID) {
-                        ForEach(LLMRegistry.all) { p in Text(p.name).tag(p.id) }
-                    }
-                    .onChange(of: providerID) { _ in loadLLM() }
-
-                    Text("API Key").font(.caption).foregroundColor(.secondary)
-                    SecureField("\(provider.name) API key…", text: $llmKey)
-                        .textFieldStyle(.roundedBorder)
-
-                    Text("Model").font(.caption).foregroundColor(.secondary)
-                    TextField(provider.defaultModel.isEmpty ? "Model name…" : provider.defaultModel,
-                              text: $llmModel)
-                        .textFieldStyle(.roundedBorder)
-
-                    Text("Endpoint").font(.caption).foregroundColor(.secondary)
-                    TextField(provider.defaultEndpoint.isEmpty ? "https://…" : provider.defaultEndpoint,
-                              text: $llmEndpoint)
-                        .textFieldStyle(.roundedBorder).font(.caption)
-
-                    HStack {
-                        Button("Save") { saveLLM() }.buttonStyle(.borderedProminent)
-                        Button("Test") { testLLM() }
-                        if !llmMsg.isEmpty { Text(llmMsg).font(.caption) }
-                    }
-                    Text("Leave Model/Endpoint blank to use defaults · Set env var (\(provider.envKey)) in ~/.zshrc to skip entering a key")
+                    Text("Get a free key at console.groq.com · Or set GROQ_API_KEY in ~/.zshrc to skip entering a key")
                         .font(.caption2).foregroundColor(.secondary)
                 }
 
@@ -132,106 +76,48 @@ struct SettingsView: View {
             }
             .padding(20)
         }
-        .frame(width: 460, height: 760)
-        .onAppear { loadSTT(); loadLLM() }
+        .frame(width: 460, height: 420)
+        .onAppear { loadKey() }
     }
 
-    // MARK: STT
-    private func loadSTT() {
-        let p = sttProvider
-        sttKey = STTSettings.savedKeyFile(for: p)
-        sttModel = STTSettings.savedModel(for: p)
-        sttEndpoint = STTSettings.savedEndpoint(for: p)
-    }
-
-    private func saveSTT() {
-        let p = sttProvider
-        STTSettings.providerID = sttProviderID
-        if !sttKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            STTSettings.saveKey(sttKey, for: p)
-        }
-        STTSettings.saveModel(sttModel, for: p)
-        STTSettings.saveEndpoint(sttEndpoint, for: p)
-        sttMsg = "✅ Saved (\(p.name))"
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { sttMsg = "" }
-    }
-
-    private func testSTT() {
-        let p = sttProvider
-        STTSettings.providerID = sttProviderID
-        if !sttKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            STTSettings.saveKey(sttKey, for: p)
-        }
-        STTSettings.saveModel(sttModel, for: p)
-        STTSettings.saveEndpoint(sttEndpoint, for: p)
-
-        guard STTSettings.key(for: p) != nil else { sttMsg = "⚠️ Enter API key first"; return }
-        guard !STTSettings.endpointString(for: p).isEmpty else { sttMsg = "⚠️ Enter endpoint first"; return }
-
-        sttMsg = "⏳ Testing…"
-        // Test without audio: GET request based on style (ElevenLabs = subscription, others = models list)
-        let style = p.style
-        if style == .elevenlabs, let url = URL(string: "https://api.elevenlabs.io/v1/user/subscription") {
-            var req = URLRequest(url: url)
-            req.setValue(STTSettings.key(for: p), forHTTPHeaderField: "xi-api-key")
-            URLSession.shared.dataTask(with: req) { _, resp, _ in
-                let ok = (resp as? HTTPURLResponse)?.statusCode == 200
-                DispatchQueue.main.async { sttMsg = ok ? "✅ Key is valid" : "❌ Invalid key" }
-            }.resume()
-        } else {
-            // OpenAI-style: GET {base}/models to check auth (base = endpoint minus /transcriptions)
-            let base = STTSettings.endpointString(for: p)
-                .replacingOccurrences(of: "/transcriptions", with: "/models")
-            guard let url = URL(string: base) else { sttMsg = "❌ Invalid endpoint"; return }
-            var req = URLRequest(url: url)
-            req.setValue("Bearer \(STTSettings.key(for: p)!)", forHTTPHeaderField: "Authorization")
-            URLSession.shared.dataTask(with: req) { _, resp, _ in
-                let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-                let ok = code == 200
-                DispatchQueue.main.async { sttMsg = ok ? "✅ Key is valid" : "❌ Request failed (code \(code))" }
-            }.resume()
+    // MARK: Groq key (shared by STT + LLM)
+    private func loadKey() {
+        groqKey = STTSettings.savedKeyFile(for: sttProvider)
+        if groqKey.isEmpty {
+            groqKey = (try? String(contentsOfFile: KeyStore.dir + "/llm_groq.key", encoding: .utf8))?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
     }
 
-    // MARK: LLM
-    private func loadLLM() {
-        let p = provider
-        llmKey = (try? String(contentsOfFile: KeyStore.dir + "/llm_\(p.id).key", encoding: .utf8))?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        llmModel = UserDefaults.standard.string(forKey: "llm.model.\(p.id)") ?? ""
-        llmEndpoint = UserDefaults.standard.string(forKey: "llm.endpoint.\(p.id)") ?? ""
+    private func applyKey() {
+        STTSettings.providerID = "groq"
+        LLMSettings.providerID = "groq"
+        let t = groqKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !t.isEmpty {
+            STTSettings.saveKey(t, for: sttProvider)
+            LLMSettings.saveKey(t, for: llmProvider)
+        }
     }
 
-    private func saveLLM() {
-        let p = provider
-        LLMSettings.providerID = providerID
-        if !llmKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            LLMSettings.saveKey(llmKey, for: p)
-        }
-        LLMSettings.saveModel(llmModel, for: p)
-        LLMSettings.saveEndpoint(llmEndpoint, for: p)
-        llmMsg = "✅ Saved (\(p.name))"
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { llmMsg = "" }
+    private func saveKey() {
+        applyKey()
+        groqMsg = "✅ Saved"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { groqMsg = "" }
     }
 
-    private func testLLM() {
-        let p = provider
-        LLMSettings.providerID = providerID
-        if !llmKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            LLMSettings.saveKey(llmKey, for: p)
-        }
-        LLMSettings.saveModel(llmModel, for: p)
-        LLMSettings.saveEndpoint(llmEndpoint, for: p)
+    private func testKey() {
+        applyKey()
+        guard STTSettings.key(for: sttProvider) != nil else { groqMsg = "⚠️ Enter API key first"; return }
 
-        guard LLMSettings.key(for: p) != nil else { llmMsg = "⚠️ Enter API key first"; return }
-        guard !LLMSettings.endpointString(for: p).isEmpty else { llmMsg = "⚠️ Enter endpoint first"; return }
-
-        llmMsg = "⏳ Testing…"
-        let svc = TextCorrectionService()
-        svc.correct(text: "Hello this is a test", language: "en") { result in
+        groqMsg = "⏳ Testing…"
+        guard let url = URL(string: "https://api.groq.com/openai/v1/models") else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(STTSettings.key(for: sttProvider)!)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: req) { _, resp, _ in
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
             DispatchQueue.main.async {
-                llmMsg = (result != nil) ? "✅ Working" : "❌ Failed (check key/model/endpoint)"
+                groqMsg = code == 200 ? "✅ Key is valid" : "❌ Invalid key (code \(code))"
             }
-        }
+        }.resume()
     }
 }

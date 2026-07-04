@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhisperApp — พูดแล้วพิมพ์ให้ ทุกที่บน Mac</title>
+<meta name="description" content="WhisperApp — menu-bar dictation สำหรับ macOS กด Fn ค้างแล้วพูด ถอดเสียงด้วย Whisper + แก้คำด้วย AI พิมพ์ลงแอปไหนก็ได้">
+<link rel="icon" href="logo.png">
+<style>
+  :root {
+    --bg: #0d0b1e;
+    --card: #17142e;
+    --text: #f0eefc;
+    --muted: #9c96c4;
+    --accent: #7c5cff;
+    --accent2: #4fd1ff;
+    --border: rgba(255,255,255,.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Noto Sans Thai", sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  .glow {
+    position: fixed; top: -300px; left: 50%; transform: translateX(-50%);
+    width: 900px; height: 600px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(124,92,255,.35), transparent);
+    pointer-events: none; z-index: 0;
+  }
+  main { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  .hero { text-align: center; padding: 88px 0 64px; }
+  .hero img.logo {
+    width: 148px; height: 148px;
+    filter: drop-shadow(0 20px 50px rgba(124,92,255,.45));
+    animation: float 5s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  .hero h1 {
+    font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800; letter-spacing: -.02em;
+    margin: 28px 0 12px;
+    background: linear-gradient(90deg, #fff, var(--accent2), var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.tagline { font-size: clamp(1.05rem, 2.5vw, 1.35rem); color: var(--muted); max-width: 620px; margin: 0 auto 36px; }
+  .hero p.tagline b { color: var(--text); }
+  .btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 30px; border-radius: 14px; font-size: 1.05rem; font-weight: 600;
+    text-decoration: none; transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #5a3de0);
+    color: #fff; box-shadow: 0 8px 30px rgba(124,92,255,.4);
+  }
+  .btn-ghost { border: 1px solid var(--border); color: var(--text); background: rgba(255,255,255,.04); }
+  .hero .meta { margin-top: 18px; font-size: .85rem; color: var(--muted); }
+
+  /* Demo strip */
+  .demo {
+    margin: 24px auto 0; max-width: 640px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 26px 30px; text-align: left; font-size: .98rem;
+  }
+  .demo .kbd {
+    display:inline-block; padding: 3px 10px; border-radius: 8px;
+    background: rgba(124,92,255,.18); border: 1px solid rgba(124,92,255,.4);
+    font-family: ui-monospace, "SF Mono", monospace; font-size: .9rem;
+  }
+  .demo .step { display: flex; gap: 14px; align-items: baseline; margin: 10px 0; }
+  .demo .num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color:#fff; font-weight: 700; font-size:.85rem;
+    display:flex; align-items:center; justify-content:center; align-self: center;
+  }
+
+  /* Features */
+  section.features { padding: 72px 0; }
+  h2.section { text-align:center; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; margin-bottom: 40px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 26px; transition: border-color .2s, transform .2s;
+  }
+  .card:hover { border-color: rgba(124,92,255,.5); transform: translateY(-3px); }
+  .card .icon { font-size: 1.8rem; margin-bottom: 12px; }
+  .card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+  .card p { color: var(--muted); font-size: .95rem; }
+
+  /* Steps / install */
+  section.install { padding: 24px 0 72px; }
+  .install .card { max-width: 640px; margin: 0 auto; }
+  .install ol { margin-left: 22px; color: var(--muted); }
+  .install ol li { margin: 8px 0; }
+  .install ol li b { color: var(--text); }
+  code { font-family: ui-monospace, "SF Mono", monospace; background: rgba(255,255,255,.08); padding: 2px 7px; border-radius: 6px; font-size: .88em; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 34px 24px; text-align: center; color: var(--muted); font-size: .9rem;
+  }
+  footer a { color: var(--accent2); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<main>
+
+  <section class="hero">
+    <img class="logo" src="logo.png" alt="WhisperApp logo">
+    <h1>WhisperApp</h1>
+    <p class="tagline">พูดแล้วให้ Mac พิมพ์ให้ — <b>กด Fn ค้างแล้วพูด</b> ปล่อยปุ๊บข้อความเด้งลงแอปที่ใช้อยู่ทันที ถอดเสียงด้วย Whisper แล้วขัดเกลาคำผิดด้วย AI ให้อัตโนมัติ</p>
+    <div class="btns">
+      <a class="btn btn-primary" href="https://github.com/Gamezxz/WhisperApp/releases/latest">⬇︎ ดาวน์โหลดสำหรับ macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Gamezxz/WhisperApp">ดูโค้ดบน GitHub</a>
+    </div>
+    <p class="meta">macOS 13+ · Apple notarized — ติดตั้งได้ไม่มีคำเตือน · ฟรี &amp; open source</p>
+
+    <div class="demo">
+      <div class="step"><span class="num">1</span><span>กดปุ่ม <span class="kbd">Fn</span> ค้างไว้ แล้วพูดสิ่งที่อยากพิมพ์</span></div>
+      <div class="step"><span class="num">2</span><span>ปล่อยปุ่ม — เสียงถูกถอดเป็นข้อความด้วย <b>Whisper</b> ภายในไม่กี่วินาที</span></div>
+      <div class="step"><span class="num">3</span><span>AI แก้คำผิด/เว้นวรรคให้ แล้วพิมพ์ลงแอปที่คุณใช้อยู่ทันที ✨</span></div>
+    </div>
+  </section>
+
+  <section class="features">
+    <h2 class="section">ทำไมต้อง WhisperApp</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="icon">🎙️</div>
+        <h3>Hold to Talk</h3>
+        <p>กด Fn ค้างเพื่อพูด ปล่อยเพื่อหยุด — เหมือน walkie-talkie หรือสลับเป็นโหมด toggle (เคาะ 2 ครั้งเริ่ม เคาะครั้งเดียวหยุด) เปลี่ยนปุ่มลัดได้ตามใจ</p>
+      </div>
+      <div class="card">
+        <div class="icon">⚡️</div>
+        <h3>เร็วด้วย Groq</h3>
+        <p>ถอดเสียงด้วย whisper-large-v3-turbo บน Groq — เร็วระดับเสี้ยววินาที และมี free tier ใส่ API key เดียวใช้ได้ทั้งระบบ</p>
+      </div>
+      <div class="card">
+        <div class="icon">✨</div>
+        <h3>AI Correction</h3>
+        <p>ข้อความที่ถอดได้ถูกขัดเกลาด้วย LLM อัตโนมัติ — แก้คำผิด เว้นวรรค จัดประโยคให้อ่านลื่น ทั้งไทยและอังกฤษ</p>
+      </div>
+      <div class="card">
+        <div class="icon">📍</div>
+        <h3>อยู่บน Menu Bar</h3>
+        <p>ไม่มีหน้าต่างรก ไม่กินพื้นที่ Dock — แอปเงียบๆ อยู่บน menu bar พร้อมใช้ทุกเมื่อ ทำงานกับทุกแอปบน Mac</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔒</div>
+        <h3>ปลอดภัย &amp; Notarized</h3>
+        <p>Sign ด้วย Developer ID และผ่าน Apple notarization — ดับเบิลคลิกติดตั้งได้เลย ไม่มีคำเตือนความปลอดภัย API key เก็บในเครื่องเท่านั้น</p>
+      </div>
+      <div class="card">
+        <div class="icon">🪶</div>
+        <h3>เบาหวิว</h3>
+        <p>เขียนด้วย Swift ล้วน ไฟล์ติดตั้งเพียง ~4MB ไม่มี Electron ไม่มี background process หนักเครื่อง</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="install">
+    <h2 class="section">เริ่มใช้ใน 2 นาที</h2>
+    <div class="card">
+      <ol>
+        <li>ดาวน์โหลด <b>WhisperApp.dmg</b> แล้วลากไปที่ Applications</li>
+        <li>เปิดแอป → อนุญาตไมโครโฟน &amp; Accessibility ตามที่ระบบถาม</li>
+        <li>ขอ API key ฟรีที่ <a href="https://console.groq.com" style="color:var(--accent2)">console.groq.com</a> แล้ววางใน Settings (หรือตั้ง <code>GROQ_API_KEY</code> ใน <code>~/.zshrc</code>)</li>
+        <li>กด <b>Fn</b> ค้าง แล้วเริ่มพูดได้เลย 🎉</li>
+      </ol>
+    </div>
+  </section>
+
+</main>
+<footer>
+  WhisperApp — สร้างโดย <a href="https://github.com/Gamezxz">Gamezxz</a> · Open source บน <a href="https://github.com/Gamezxz/WhisperApp">GitHub</a>
+</footer>
+</body>
+</html>

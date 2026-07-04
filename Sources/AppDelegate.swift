@@ -218,6 +218,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
             }
         }
 
+        mgr.isActive = { [weak self] in
+            self?.controller.isRecording ?? false
+        }
+
         mgr.start()
     }
 }

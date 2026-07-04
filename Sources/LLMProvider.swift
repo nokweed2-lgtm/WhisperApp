@@ -74,7 +74,7 @@ enum LLMSettings {
     private static let providerKey = "llm.provider"
 
     static var providerID: String {
-        get { defaults.string(forKey: providerKey) ?? "deepseek" }
+        get { defaults.string(forKey: providerKey) ?? "groq" }
         set { defaults.set(newValue, forKey: providerKey) }
     }
 
