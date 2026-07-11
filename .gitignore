@@ -24,3 +24,16 @@ secrets/
 
 # Claude Code local
 .claude/
+
+# Windows / .NET build artifacts (WhisperWin) — ห้าม commit, สร้างตอน build
+windows/**/bin/
+windows/**/obj/
+windows/**/publish/
+*.user
+*.suo
+*.dll
+*.exe
+*.pdb
+*.nupkg
+[Bb]in/
+[Oo]bj/

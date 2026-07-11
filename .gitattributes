@@ -1,0 +1,12 @@
+# Mac app sources and scripts must stay LF — CRLF breaks run.sh/make_dmg.sh
+# and pollutes diffs when the repo is edited from the Windows machine (OneDrive sync).
+* text=auto eol=lf
+*.sh text eol=lf
+*.swift text eol=lf
+shared/** text eol=lf
+
+# Windows project files may keep CRLF
+windows/** text=auto
+*.png binary
+*.icns binary
+*.dmg binary
