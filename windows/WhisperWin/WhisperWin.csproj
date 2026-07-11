@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>WhisperWin</AssemblyName>
+    <RootNamespace>WhisperWin</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+
+    <!-- Self-contained single-file publish for win-x64 (personal-use distribution). -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- InvariantGlobalization must stay OFF: WPF's XAML bindings resolve specific
+         cultures (xml:lang="en-us") at runtime and crash with XamlParseException
+         "Cannot find non-neutral culture" when globalization data is stripped. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Embedded as a WPF resource so the tray icon works from the single-file exe. -->
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
+  </ItemGroup>
+
+  <!-- Copy shared/ (correction-prompt.md, dictionary.json) next to the build/publish output so
+       the app works even when run standalone, outside the repo checkout (see SharedPaths.cs). -->
+  <ItemGroup>
+    <None Include="..\..\shared\**\*.*">
+      <Link>shared\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

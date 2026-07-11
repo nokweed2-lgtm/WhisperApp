@@ -1,0 +1,58 @@
+<Window x:Class="WhisperWin.UI.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Whisper Settings" Height="620" Width="440"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <DockPanel Margin="20">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
+            <Button x:Name="SaveButton" Content="Save" Width="80" Click="SaveButton_Click" Margin="0,0,8,0" />
+            <Button x:Name="CancelButton" Content="Cancel" Width="80" Click="CancelButton_Click" />
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Groq API Key" FontWeight="Bold" Margin="0,0,0,4" />
+                <PasswordBox x:Name="ApiKeyBox" Margin="0,0,0,8" />
+
+                <Button x:Name="TestKeyButton" Content="Test Key" Width="100" HorizontalAlignment="Left"
+                        Click="TestKeyButton_Click" Margin="0,0,0,4" />
+                <TextBlock x:Name="TestKeyResult" Margin="0,0,0,12" TextWrapping="Wrap" />
+
+                <CheckBox x:Name="UseCorrectionCheck" Content="Enable AI correction (LLM cleanup)" Margin="0,0,0,8" />
+                <CheckBox x:Name="LaunchAtLoginCheck" Content="Launch at login" Margin="0,0,0,16" />
+
+                <Separator Margin="0,0,0,16" />
+
+                <TextBlock Text="Custom Dictionary" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock Text="Words/terms that must always be spelled exactly as written."
+                           TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,8" />
+
+                <StackPanel x:Name="DictionaryPanel" Orientation="Horizontal">
+                    <TextBox x:Name="NewEntryBox" Width="280" KeyDown="NewEntryBox_KeyDown" />
+                    <Button x:Name="AddEntryButton" Content="Add" Width="60" Margin="8,0,0,0" Click="AddEntryButton_Click" />
+                </StackPanel>
+                <ItemsControl x:Name="EntriesList" Margin="0,8,0,16" />
+
+                <Separator Margin="0,0,0,16" />
+
+                <TextBlock Text="Word Replacements" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock Text="For words STT keeps mishearing the same way — replaced automatically during AI correction. Shared with the Mac app."
+                           TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,8" />
+
+                <StackPanel x:Name="PairsPanel" Orientation="Horizontal">
+                    <TextBox x:Name="NewPairWrongBox" Width="150" />
+                    <TextBlock Text=" → " VerticalAlignment="Center" Margin="4,0" />
+                    <TextBox x:Name="NewPairRightBox" Width="150" KeyDown="NewPairRightBox_KeyDown" />
+                </StackPanel>
+                <Button x:Name="AddPairButton" Content="Add" Width="60" HorizontalAlignment="Left"
+                        Margin="0,4,0,0" Click="AddPairButton_Click" />
+                <ItemsControl x:Name="PairsList" Margin="0,8,0,0" />
+
+                <TextBlock x:Name="DictionaryUnavailableText"
+                           Text="shared/dictionary.json not found — dictionary editing is unavailable on this machine."
+                           TextWrapping="Wrap" Foreground="DarkRed" Margin="0,8,0,0" Visibility="Collapsed" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -1,0 +1,32 @@
+<Window x:Class="WhisperWin.UI.FloatingPill"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Whisper"
+        Width="220" Height="56"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual">
+    <Border CornerRadius="28" Background="#1E1E1E" Opacity="0.92" Padding="16,8">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="#FF5252" Grid.Column="0" VerticalAlignment="Center" />
+
+            <StackPanel x:Name="WaveformPanel" Orientation="Horizontal" Grid.Column="1"
+                        Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left">
+                <!-- Bars added programmatically -->
+            </StackPanel>
+
+            <TextBlock x:Name="StatusText" Grid.Column="1" Margin="12,0,0,0"
+                       Foreground="White" FontSize="12" VerticalAlignment="Center"
+                       Visibility="Collapsed" />
+        </Grid>
+    </Border>
+</Window>
