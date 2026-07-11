@@ -65,7 +65,7 @@ class DictationController: ObservableObject {
         processing = true
         let lang = language
 
-        let finishOnMain: (String) -> Void = { [weak self] text in
+        let finishOnMain: (String, String) -> Void = { [weak self] text, raw in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 let snippet = String(text.prefix(28))
@@ -73,6 +73,7 @@ class DictationController: ObservableObject {
                 self.stage = .done(snippet)
                 self.processing = false
                 Paster.paste(text)
+                HistoryStore.append(text: text, raw: raw)
                 // กลับเป็น idle หลังโชว์สักครู่
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                     guard let self = self else { return }
@@ -85,6 +86,8 @@ class DictationController: ObservableObject {
             guard let self = self else { return }
             // ลบคำบรรยายเสียง/เหตุการณ์ที่ STT เติมมา เช่น (เสียงลม) (wind) [background noise]
             let text = (result.map { self.stripSoundAnnotations($0) }) ?? ""
+            // บันทึกข้อความดิบจาก STT (ก่อน LLM แก้) เพื่อแยกให้ออกว่าคำเพี้ยนมาจาก Whisper หรือ LLM
+            DebugLog.log("raw STT: \(result ?? "<nil>")")
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 DispatchQueue.main.async {
                     self.status = "⚠️ No audio detected"
@@ -102,10 +105,12 @@ class DictationController: ObservableObject {
                     self.stage = .correcting
                 }
                 self.correction.correct(text: text, language: lang) { corrected in
-                    finishOnMain(corrected ?? text)
+                    DebugLog.log("corrected: \(corrected ?? "<nil, kept raw>")")
+                    finishOnMain(corrected ?? text, text)
                 }
             } else {
-                finishOnMain(text)
+                DebugLog.log("corrected: <disabled, kept raw>")
+                finishOnMain(text, text)
             }
         }
 

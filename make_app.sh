@@ -28,12 +28,18 @@ fi
 # - ถ้ามี "Developer ID Application" → sign ด้วย cert นี้ (identity คงที่ สิทธิ์ TCC อยู่ข้าม rebuild)
 # - ไม่งั้น fallback ad-hoc (สิทธิ์จะหายทุกครั้งที่ rebuild)
 DEV_ID=$(security find-identity -v -p codesigning "$KEYCHAIN" 2>/dev/null | grep "Developer ID Application" | head -1 | sed -n 's/.*"\(.*\)".*/\1/p')
+SELF_ID=$(security find-identity -v -p codesigning "$KEYCHAIN" 2>/dev/null | grep "WhisperApp Dev" | head -1 | sed -n 's/.*"\(.*\)".*/\1/p')
 
 if [ -n "$DEV_ID" ]; then
     echo "✍️  Code signing ด้วย Developer ID: $DEV_ID"
     codesign --force --deep --options runtime --timestamp \
         --entitlements WhisperApp.entitlements \
         --sign "$DEV_ID" "$APP_BUNDLE"
+elif [ -n "$SELF_ID" ]; then
+    # self-signed dev cert — identity คงที่ สิทธิ์ TCC อยู่ข้าม rebuild (ห้ามใช้แจกจ่าย)
+    echo "✍️  Code signing ด้วย self-signed cert: WhisperApp Dev"
+    xattr -cr "$APP_BUNDLE" 2>/dev/null || true
+    codesign --force --deep --sign "WhisperApp Dev" "$APP_BUNDLE"
 else
     echo "✍️  Code signing (ad-hoc) — แนะนำให้ติดตั้ง Developer ID cert เพื่อสิทธิ์คงที่"
     codesign --force --deep --sign - "$APP_BUNDLE"

@@ -12,6 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
     private var settingsWindow: NSWindow?
     private var aboutWindow: NSWindow?
+    private var historyWindow: NSWindow?
 
     private var toggleItem: NSMenuItem!
     private var cloudItem: NSMenuItem!
@@ -90,6 +91,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         settings.target = self
         menu.addItem(settings)
 
+        let history = NSMenuItem(title: "History…", action: #selector(openHistory), keyEquivalent: "h")
+        history.target = self
+        menu.addItem(history)
+
         let about = NSMenuItem(title: "About Whisper", action: #selector(openAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
@@ -159,10 +164,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         aboutWindow?.makeKeyAndOrderFront(nil)
     }
 
-    // Return to menu-bar mode when settings/about window closes (hide from Dock)
+    @objc private func openHistory() {
+        if historyWindow == nil {
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 480, height: 500),
+                styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            w.title = "History"
+            w.isReleasedWhenClosed = false
+            w.delegate = self
+            w.center()
+            historyWindow = w
+        }
+        // Rebuild content each open so the list shows the latest entries
+        historyWindow?.contentView = NSHostingView(rootView: HistoryView())
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        historyWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    // Return to menu-bar mode when settings/about/history window closes (hide from Dock)
     func windowWillClose(_ notification: Notification) {
         let win = notification.object as? NSWindow
-        if win === settingsWindow || win === aboutWindow {
+        if win === settingsWindow || win === aboutWindow || win === historyWindow {
             NSApp.setActivationPolicy(.accessory)
         }
     }

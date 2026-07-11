@@ -9,6 +9,18 @@ struct SettingsView: View {
     @State private var groqKey = ""
     @State private var groqMsg = ""
 
+    // Custom dictionary
+    @State private var dictEntries: [String] = []
+    @State private var newDictWord = ""
+
+    // Word replacement pairs (wrong → right)
+    @State private var dictPairs: [Pair] = []
+    @State private var newWrong = ""
+    @State private var newRight = ""
+
+    // Learned examples (Learn-from-Edits) — taught from History, injected as few-shot
+    @State private var learnedExamples: [Example] = []
+
     private var sttProvider: STTProvider { STTRegistry.provider(id: "groq") }
     private var llmProvider: LLMProvider { LLMRegistry.provider(id: "groq") }
 
@@ -72,12 +84,157 @@ struct SettingsView: View {
                         .font(.caption2).foregroundColor(.secondary)
                 }
 
+                Divider()
+
+                // ── Custom Dictionary ──
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Custom Dictionary", systemImage: "character.book.closed")
+                        .font(.subheadline).bold()
+
+                    Text("Names and terms that must always be spelled exactly as written · shared with the Windows app")
+                        .font(.caption).foregroundColor(.secondary)
+
+                    HStack {
+                        TextField("Add a word or name…", text: $newDictWord)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { addDictWord() }
+                        Button("Add") { addDictWord() }
+                            .disabled(newDictWord.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+
+                    ForEach(dictEntries, id: \.self) { word in
+                        HStack {
+                            Text(word).font(.callout)
+                            Spacer()
+                            Button { removeDictWord(word) } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Remove \"\(word)\"")
+                        }
+                        .padding(.vertical, 3).padding(.horizontal, 8)
+                        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+
+                Divider()
+
+                // ── Word replacements (wrong → right pairs) ──
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Word replacements", systemImage: "arrow.left.arrow.right")
+                        .font(.subheadline).bold()
+
+                    Text("คู่คำที่ฟังผิดซ้ำๆ จนเดาไม่ได้จากบริบท (เช่น \"ติมสแกน\" → \"Theme Scan\") · shared with the Windows app")
+                        .font(.caption).foregroundColor(.secondary)
+
+                    HStack {
+                        TextField("คำที่ฟังผิด", text: $newWrong)
+                            .textFieldStyle(.roundedBorder)
+                        Image(systemName: "arrow.right")
+                            .foregroundColor(.secondary)
+                        TextField("คำที่ถูก", text: $newRight)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { addDictPair() }
+                        Button("Add") { addDictPair() }
+                            .disabled(newWrong.trimmingCharacters(in: .whitespaces).isEmpty
+                                      || newRight.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+
+                    ForEach(dictPairs, id: \.self) { pair in
+                        HStack {
+                            Text("\(pair.toReplace) → \(pair.replaceWith)").font(.callout)
+                            Spacer()
+                            Button { removeDictPair(pair) } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Remove \"\(pair.toReplace) → \(pair.replaceWith)\"")
+                        }
+                        .padding(.vertical, 3).padding(.horizontal, 8)
+                        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+
+                Divider()
+
+                // ── Learned examples (Learn-from-Edits) ──
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("บทเรียนที่สอน", systemImage: "graduationcap")
+                        .font(.subheadline).bold()
+
+                    Text("ตัวอย่างที่สอนจากการแก้ใน History (สอนเป็นตัวอย่าง) — ใช้ 5 รายการล่าสุดตอนแก้คำ")
+                        .font(.caption).foregroundColor(.secondary)
+
+                    if learnedExamples.isEmpty {
+                        Text("ยังไม่มีบทเรียน — ไปแก้คำใน History แล้วกด \"สอนเป็นตัวอย่าง\"")
+                            .font(.caption2).foregroundColor(.secondary)
+                    }
+
+                    ForEach(learnedExamples, id: \.created) { example in
+                        HStack {
+                            Text("\(example.raw) → \(example.corrected)").font(.callout)
+                            Spacer()
+                            Button { removeLearnedExample(example) } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Remove \"\(example.raw) → \(example.corrected)\"")
+                        }
+                        .padding(.vertical, 3).padding(.horizontal, 8)
+                        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+
                 Spacer(minLength: 0)
             }
             .padding(20)
         }
-        .frame(width: 460, height: 420)
-        .onAppear { loadKey() }
+        .frame(width: 460, height: 560)
+        .onAppear {
+            loadKey()
+            dictEntries = DictionaryStore.load()
+            dictPairs = DictionaryStore.loadPairs()
+            learnedExamples = LearnedExamplesStore.load()
+        }
+    }
+
+    // MARK: Custom dictionary
+    private func addDictWord() {
+        let w = newDictWord.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !w.isEmpty, !dictEntries.contains(w) else { newDictWord = ""; return }
+        dictEntries.append(w)
+        DictionaryStore.saveEntries(dictEntries)
+        newDictWord = ""
+    }
+
+    private func removeDictWord(_ w: String) {
+        dictEntries.removeAll { $0 == w }
+        DictionaryStore.saveEntries(dictEntries)
+    }
+
+    // MARK: Word replacement pairs
+    private func addDictPair() {
+        let wrong = newWrong.trimmingCharacters(in: .whitespacesAndNewlines)
+        let right = newRight.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !wrong.isEmpty, !right.isEmpty else { return }
+        dictPairs.append(Pair(toReplace: wrong, replaceWith: right))
+        DictionaryStore.savePairs(dictPairs)
+        newWrong = ""
+        newRight = ""
+    }
+
+    private func removeDictPair(_ pair: Pair) {
+        dictPairs.removeAll { $0 == pair }
+        DictionaryStore.savePairs(dictPairs)
+    }
+
+    // MARK: Learned examples
+    private func removeLearnedExample(_ example: Example) {
+        learnedExamples.removeAll { $0 == example }
+        LearnedExamplesStore.remove(example)
     }
 
     // MARK: Groq key (shared by STT + LLM)

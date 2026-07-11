@@ -34,7 +34,9 @@ enum STTRegistry {
                     envKey: "OPENAI_API_KEY", style: .openAI),
         STTProvider(id: "groq", name: "Groq (Whisper)",
                     defaultEndpoint: "https://api.groq.com/openai/v1/audio/transcriptions",
-                    defaultModel: "whisper-large-v3-turbo",
+                    // Full large-v3, not turbo: turbo is pruned for speed and mis-hears short Thai
+                    // clips more often (e.g. เรียบร้อย→เรียบล่อย). v3 is the accuracy benchmark.
+                    defaultModel: "whisper-large-v3",
                     envKey: "GROQ_API_KEY", style: .openAI),
         STTProvider(id: "stt_custom", name: "Custom (OpenAI-compatible)",
                     defaultEndpoint: "",

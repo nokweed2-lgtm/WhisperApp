@@ -27,12 +27,14 @@ struct HotkeyConfig: Codable, Equatable {
     /// Human-readable shortcut string (e.g., "⌃⌥Space" or "Fn")
     var displayString: String {
         if isModifierOnly {
+            // Right-side variants get a suffix so the user can see which side is bound
+            let side = [54, 60, 61, 62].contains(Int(keyCode)) ? " (Right)" : ""
             let flags = NSEvent.ModifierFlags(rawValue: modifiers)
             if flags.contains(.function) { return "Fn" }
-            if flags.contains(.control) { return "⌃" }
-            if flags.contains(.option) { return "⌥" }
-            if flags.contains(.shift) { return "⇧" }
-            if flags.contains(.command) { return "⌘" }
+            if flags.contains(.control) { return "⌃" + side }
+            if flags.contains(.option) { return "⌥" + side }
+            if flags.contains(.shift) { return "⇧" + side }
+            if flags.contains(.command) { return "⌘" + side }
             return "Modifier"
         }
 
@@ -170,6 +172,12 @@ class HotkeyManager {
     /// Modifier keys generate flagsChanged events, not keyDown/keyUp
     private func handleModifierEvent(_ event: NSEvent) {
         guard event.type == .flagsChanged else { return }
+
+        // flagsChanged carries the keyCode of the modifier that changed — use it to
+        // distinguish left/right variants (e.g. right ⌃ = 62 must not match left ⌃ = 59)
+        if modifierKeyCodes.contains(config.keyCode) {
+            guard UInt32(event.keyCode) == config.keyCode else { return }
+        }
 
         let configFlags = NSEvent.ModifierFlags(rawValue: config.modifiers)
         let isDown = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(configFlags)
