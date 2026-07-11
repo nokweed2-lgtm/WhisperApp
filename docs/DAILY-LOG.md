@@ -35,6 +35,14 @@
 - ✅ **P3 approve-with-nits ไม่มี blocker** — raw ที่สอนถูก semantic (= input จริงของ correction), format เป็น contract ให้ Windows พอร์ต byte-identical · P1 เก็บ nit no-op-teach guard + dismiss-after-teach เพิ่ม · nit fractional-sec + splice order บันทึกใน spec ให้ Windows fast-follow
 - **หมายเหตุ:** prompt ฝั่ง Mac ยัง hardcode (P3 Finding #2 เดิม) — learned-examples เป็น data inject เลยไม่ drift แต่ตัว prompt text ยังต้องทำ runtime-load ทีหลัง
 
+### Release — commit ครั้งแรกหลังสะสมหลาย session + tag v1.3
+
+- ✅ **commit แยก 5 ก้อน** (คุณนกสั่ง) แล้ว push ขึ้น GitHub ([nokweed2-lgtm/WhisperApp](https://github.com/nokweed2-lgtm/WhisperApp)): (1) chore gitignore/gitattributes (2) shared brain (3) windows WhisperWin (4) mac features (5) docs
+  - **กัน build junk:** เพิ่ม `.gitignore` `windows/**/{bin,obj,publish}` + `*.dll/exe/pdb` ก่อน add → windows/ commit แค่ 44 ไฟล์ source (จาก ~1,800 ที่มี bin/obj)
+  - **stat-dirty จาก OneDrive:** git status เห็น 28 modified แต่จริงมี 9 ที่แก้เนื้อหา — อีก 19 แตะ mtime เฉยๆ เคลียร์ด้วย `git add --renormalize`
+- ✅ **bump 1.2 → 1.3** (`Info.plist`) + annotated tag `v1.3` + push tag — **tag-only** (ไม่มี DMG notarized เพราะไม่มี Developer ID cert บนเครื่องนี้) · เว็บโปรโมตยังชี้ v1.2 DMG ตัวจริง (ไม่แตะลิงก์ดาวน์โหลด)
+- ⬜ ถ้าจะออก DMG v1.3 ให้โหลดจริง: ต้องหา/สร้าง Developer ID cert ก่อน → `make_dmg.sh` → gh release → อัปเดต `docs/index.html` (badge + JSON-LD softwareVersion/downloadUrl)
+
 ### ค้าง (เหลือ manual QA ของคุณนก + งานรอง)
 
 - ⬜ **[Phase 3 QA] พูดจริงทดสอบ learn-from-edits**: dictate → แก้ใน History → "สอนเป็นตัวอย่าง" → เช็ค `shared/learned-examples.json` เพิ่มคู่ + พูดประโยคคล้ายเดิมดูว่า correction เอนตามที่สอน · ลอง "บันทึกเป็นกฎ" + ลบบทเรียนใน Settings
