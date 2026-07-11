@@ -1,6 +1,14 @@
 # Whisper (WhisperApp)
 
 macOS menu-bar dictation app (Swift) — กด Fn ค้างแล้วพูด → Groq STT → LLM แก้คำ → paste ลงแอปที่ใช้อยู่
+มี sibling ฝั่ง Windows: **WhisperWin** (C#/WPF, `windows/`) hotkey = Right Ctrl — ใช้ prompt + dictionary ร่วมกันผ่าน `shared/`
+
+## กติกาประจำโปรเจกต์ (ทุก session)
+
+- **Daily log**: ก่อนจบงานทุกครั้ง อัปเดต `docs/DAILY-LOG.md` (สรุปว่าทำอะไรเสร็จ ตัดสินใจอะไร ค้างอะไร — วันใหม่เพิ่ม section บนสุด วันเดิมแก้ section เดิม)
+- **Roadmap**: งานฟีเจอร์ให้ทำตาม phase ใน `docs/ROADMAP.md` แล้วติ๊กสถานะเมื่อเสร็จ
+- **Subagents**: งาน implement/แก้บั๊กให้ใช้ pipeline `.claude/agents/` — p1-implementer (Sonnet) → p2-tester (Sonnet) → p3-reviewer (Opus) — model หลักทำหน้าที่ orchestrate เท่านั้น (คุณนกขอ ประหยัดค่า model แพง)
+- อย่า commit/push จนกว่าคุณนกสั่ง
 
 ## สถานะปัจจุบัน (v1.2 — released 2026-07-05)
 
