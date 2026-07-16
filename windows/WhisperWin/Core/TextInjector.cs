@@ -8,8 +8,9 @@ namespace WhisperWin.Core
 {
     /// <summary>
     /// Pastes corrected text into whatever application currently has focus: saves the current
-    /// clipboard contents, sets the clipboard to the corrected text, simulates Ctrl+V via
-    /// SendInput, then restores the previous clipboard contents after a short delay.
+    /// clipboard contents (any format — text, image, file drop list, etc.), sets the clipboard to
+    /// the corrected text, simulates Ctrl+V via SendInput, then restores the previous clipboard
+    /// contents after a short delay.
     ///
     /// Clipboard access on Windows requires an STA thread. The WPF UI thread already is STA, so
     /// all clipboard work is marshaled onto the given <see cref="Dispatcher"/> (normally
@@ -28,9 +29,10 @@ namespace WhisperWin.Core
 
         /// <summary>
         /// Copies <paramref name="text"/> to the clipboard and simulates Ctrl+V into the focused
-        /// window. Restores the clipboard's previous contents afterwards. If the focused window is
-        /// elevated (running as admin) SendInput cannot reach it — the text is left on the
-        /// clipboard so the user can paste manually; callers should surface a balloon in that case.
+        /// window. Restores the clipboard's previous contents (whatever formats it held)
+        /// afterwards. If the focused window is elevated (running as admin) SendInput cannot reach
+        /// it — the text is left on the clipboard so the user can paste manually; callers should
+        /// surface a balloon in that case.
         /// </summary>
         public async Task PasteAsync(string text)
         {
@@ -39,16 +41,11 @@ namespace WhisperWin.Core
                 throw new ArgumentNullException(nameof(text));
             }
 
-            string? previousClipboardText = null;
-            bool hadPreviousText = false;
+            DataObject? savedData = null;
 
             await _dispatcher.InvokeAsync(() =>
             {
-                if (Clipboard.ContainsText())
-                {
-                    previousClipboardText = Clipboard.GetText();
-                    hadPreviousText = true;
-                }
+                savedData = SnapshotClipboard();
                 SetClipboardTextWithRetry(text);
             });
 
@@ -58,11 +55,63 @@ namespace WhisperWin.Core
 
             await _dispatcher.InvokeAsync(() =>
             {
-                if (hadPreviousText && previousClipboardText != null)
+                if (savedData != null)
                 {
-                    SetClipboardTextWithRetry(previousClipboardText);
+                    SetClipboardDataObjectWithRetry(savedData);
+                }
+                else
+                {
+                    // ไม่มีอะไรอยู่ก่อนหน้า → เคลียร์ทิ้ง ไม่ควรเหลือคำที่เพิ่ง dictate ค้างไว้
+                    ClearClipboardWithRetry();
                 }
             });
+        }
+
+        /// <summary>
+        /// Captures the current clipboard contents into a detached <see cref="DataObject"/> that
+        /// can be restored later, regardless of format (text, image, file drop list, etc.). Some
+        /// formats can throw or return null when read back via GetData — those are skipped rather
+        /// than failing the whole snapshot. Returns null if the clipboard held nothing usable.
+        /// </summary>
+        private static DataObject? SnapshotClipboard()
+        {
+            IDataObject? current;
+            try
+            {
+                current = Clipboard.GetDataObject();
+            }
+            catch (COMException)
+            {
+                return null;
+            }
+
+            if (current == null)
+            {
+                return null;
+            }
+
+            var snapshot = new DataObject();
+            var formats = current.GetFormats();
+            var hasAny = false;
+
+            foreach (var format in formats)
+            {
+                try
+                {
+                    var data = current.GetData(format);
+                    if (data != null)
+                    {
+                        snapshot.SetData(format, data, false);
+                        hasAny = true;
+                    }
+                }
+                catch
+                {
+                    // format ที่อ่านไม่ได้ (เช่นต้องใช้ handle พิเศษ) ข้ามไป ไม่ให้ล้มทั้งก้อน
+                }
+            }
+
+            return hasAny ? snapshot : null;
         }
 
         /// <summary>
@@ -77,6 +126,47 @@ namespace WhisperWin.Core
                 try
                 {
                     Clipboard.SetText(text);
+                    return;
+                }
+                catch (COMException) when (attempt < maxAttempts)
+                {
+                    System.Threading.Thread.Sleep(30);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Restores a previously-snapshotted clipboard DataObject, retrying on the same transient
+        /// COMException another process can cause by momentarily holding the clipboard open.
+        /// </summary>
+        private static void SetClipboardDataObjectWithRetry(DataObject data)
+        {
+            const int maxAttempts = 3;
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    Clipboard.SetDataObject(data, true);
+                    return;
+                }
+                catch (COMException) when (attempt < maxAttempts)
+                {
+                    System.Threading.Thread.Sleep(30);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Same retry treatment as the setters above, used when there was nothing to restore.
+        /// </summary>
+        private static void ClearClipboardWithRetry()
+        {
+            const int maxAttempts = 3;
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    Clipboard.Clear();
                     return;
                 }
                 catch (COMException) when (attempt < maxAttempts)

@@ -71,8 +71,11 @@ class DictationController: ObservableObject {
                 let snippet = String(text.prefix(28))
                 self.status = "✅ " + snippet
                 self.stage = .done(snippet)
-                self.processing = false
-                Paster.paste(text)
+                // เคลียร์ processing หลัง paste (รวม restore clipboard) เสร็จจริงเท่านั้น
+                // ไม่งั้น dictation รอบถัดไปจะเริ่มระหว่าง restore แล้ว snapshot ผิดตัว (เก็บคำที่เพิ่ง dictate แทนของเดิมผู้ใช้)
+                Paster.paste(text) { [weak self] in
+                    DispatchQueue.main.async { self?.processing = false }
+                }
                 HistoryStore.append(text: text, raw: raw)
                 // กลับเป็น idle หลังโชว์สักครู่
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
@@ -160,14 +163,38 @@ class DictationController: ObservableObject {
 enum Paster {
     private static var didPrompt = false
 
-    static func paste(_ text: String) {
+    /// - Parameter completion: เรียกเมื่อ paste (รวม restore clipboard ถ้ามี) เสร็จสมบูรณ์แล้วเท่านั้น
+    ///   ผู้เรียกที่ gate ด้วย flag แบบ `processing` ต้องรอ completion นี้ก่อนปล่อยให้เริ่มรอบใหม่ได้
+    ///   ไม่งั้น snapshot ของรอบถัดไปจะเก็บคำที่เพิ่ง dictate แทนที่จะเป็นของเดิมผู้ใช้
+    static func paste(_ text: String, completion: @escaping () -> Void) {
         let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(text, forType: .string)
 
         // ไม่มีสิทธิ์ Accessibility → เก็บใน clipboard เงียบๆ ผู้ใช้กด ⌘V เอง
         // (ห้ามเด้ง dialog ตรงนี้ จะวนระหว่าง transcribe ไม่หยุด)
-        guard AXIsProcessTrusted() else { return }
+        // กรณีนี้ห้าม restore — ไม่งั้นผู้ใช้จะไม่เหลืออะไรให้กด ⌘V เอง
+        guard AXIsProcessTrusted() else {
+            pb.clearContents()
+            pb.setString(text, forType: .string)
+            completion()
+            return
+        }
+
+        // มีสิทธิ์ auto-paste → เก็บ snapshot ของ clipboard เดิมไว้ก่อน แล้วค่อย restore กลับทีหลัง
+        // ต้อง copy data ของแต่ละ type ออกมาเป็น NSPasteboardItem ใหม่ เพราะ item เดิมเขียนซ้ำไม่ได้
+        let saved: [NSPasteboardItem] = (pb.pasteboardItems ?? []).compactMap { item in
+            let copy = NSPasteboardItem()
+            var hasData = false
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    copy.setData(data, forType: type)
+                    hasData = true
+                }
+            }
+            return hasData ? copy : nil
+        }
+
+        pb.clearContents()
+        pb.setString(text, forType: .string)
 
         // Small delay to ensure clipboard is set before simulating keystroke
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -179,6 +206,15 @@ enum Paster {
             up?.flags = .maskCommand
             down?.post(tap: .cghidEventTap)
             up?.post(tap: .cghidEventTap)
+
+            // รอให้แอปปลายทางอ่าน clipboard เสร็จก่อน ค่อย restore ของเดิมกลับ (มิเรอร์ RestoreDelay 300ms ฝั่ง Windows)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                pb.clearContents()
+                if !saved.isEmpty {
+                    pb.writeObjects(saved)
+                }
+                completion()
+            }
         }
     }
 

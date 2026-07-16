@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-07-12/13 — เครื่อง Mac · แก้บั๊ก "แอปก๊อปทับ clipboard" ผ่าน P1→P2→P3 (build+launch แล้ว รอคุณนกเทส)
+
+### สรุปผล
+- ✅ **แก้เสร็จทั้ง Mac + Windows** ผ่าน pipeline P1→P2→P3 (P3 APPROVE ไม่มี blocker), `swift build` ผ่าน, build+sign+launch ตัวใหม่แล้ว (PID ยืนยัน) — รอคุณนกทดสอบพูดจริงบน Mac
+- **ยังไม่ commit** (รอคุณนกสั่ง)
+
+### เจอปัญหา (คุณนกรายงาน)
+- **อาการ:** เวลา dictate แล้ว "มันเหมือนก๊อปปี้คำที่พูดมา ทั้งๆที่ไม่จำเป็น" → ยืนยันกับคุณนกแล้ว = **clipboard เดิมโดนทับ** (ของที่ copy ไว้ก่อน เช่น ลิงก์/ข้อความ หายไปกลายเป็นคำที่เพิ่งพูด)
+
+### diagnose (systematic-debugging — หา root cause ก่อนแก้)
+- ✅ **ตัดข้อ "pipeline ถอดซ้ำ" ออก:** ดู `~/.whisperapp/debug.log` ย้อนทั้งวัน — ทุกประโยคออก `raw`/`corrected` ชุดเดียว ไม่มี output ซ้ำ (รวมประโยคที่คุณนกพูดรายงานบั๊กนี้เอง)
+- ✅ **Root cause = วิธี paste:** [`Paster.paste`](../Sources/DictationController.swift#L163) ใช้ clipboard เป็นตัวกลาง → `pb.clearContents()` + `pb.setString(text)` แล้วสั่ง ⌘V — **ไม่เคยคืน clipboard เดิม** เลยเขียนทับทุกครั้ง
+- **ประเด็นที่ต้องระวังตอนแก้ (2 ข้อ):**
+  1. เคส **ไม่มีสิทธิ์ Accessibility** โค้ดตั้งใจทิ้ง text ไว้ใน clipboard ให้ผู้ใช้กด ⌘V เอง (`DictationController.swift:170`) → เคสนี้ **ห้ามคืน** ของเดิม, คืนเฉพาะเคส auto-paste
+  2. ต้องเก็บ **ทุก type** ใน pasteboard (ไม่ใช่แค่ string) เผื่อ copy รูป/ไฟล์ไว้
+
+### สิ่งที่แก้จริง
+- **Mac** [`Paster.paste`](../Sources/DictationController.swift#L163): snapshot `pasteboardItems` **ทุก type** (copy เป็น `NSPasteboardItem` ใหม่) ก่อนทับ → set คำที่พูด → ⌘V → หน่วง 0.25s → คืน clipboard เดิม · เคสไม่มีสิทธิ์ Accessibility คงเดิม (ทิ้ง text ให้กด ⌘V เอง ไม่คืน)
+- **Mac race fix** (P2 เจอ): เดิม `finishOnMain` เคลียร์ `processing = false` **ก่อน** paste เสร็จ → พูดรัวๆ 2 ครั้ง การ paste ครั้งที่ 2 จะ snapshot คำครั้งแรกแทนของจริง แล้ว restore ผิด clipboard หายถาวร · แก้โดยเพิ่ม `completion` callback ใน `Paster.paste` แล้วเคลียร์ `processing` ใน completion (mirror Windows `_processing` guard)
+- **Windows** [`TextInjector.PasteAsync`](../windows/WhisperWin/Core/TextInjector.cs): เดิมคืนแค่ **text** → ขยายเป็น snapshot **ทุก format** (`GetDataObject`/`GetFormats` → detached `DataObject`, guard try/catch ต่อ format) + `SetDataObject(data, true)` retry, ถ้าเดิมว่าง → `ClearClipboardWithRetry`
+
+### ค้าง / follow-up
+- **คุณนกเทสบน Mac** (แอปตัวใหม่รันอยู่แล้ว): copy ลิงก์ → พูด → เช็คว่า ⌘V ที่อื่นได้ลิงก์เดิมกลับ · ลองรูป/ไฟล์/clipboard ว่าง ด้วย
+- **Windows ต้อง build+test บนเครื่อง Windows** (`dotnet build` บน Mac ไม่ได้) — เช็ค round-trip รูป/ไฟล์
+- **Windows nit (P3 note 1):** เคส target รันเป็น admin (UIPI บล็อก Ctrl+V) โค้ดใหม่จะ restore/clear ทับ dictated text ทิ้ง (เดิมทิ้งไว้ให้ paste มือ) — SendInput ไม่รู้ว่าโดนบล็อก เลย detect ไม่ได้ · แก้ comment XML doc หรือทำ follow-up ทีหลัง
+- **ยังไม่ commit** — รอคุณนกสั่ง
+
+---
+
 ## 2026-07-11 — เครื่อง Mac · ปิดก้อน Mac ที่ค้าง (Phase 1 dict pairs + STT v3 + prompt hardening) — build ผ่าน
 
 ### เสร็จวันนี้ (ก้อน Mac ที่ค้างมาตั้งแต่ 2026-07-07)
