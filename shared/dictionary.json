@@ -1,3 +1,18 @@
 {
-  "entries": ["Tar Sawang", "Coffee for Worker", "Claude Code", "Wispr Flow", "Take Home", "Micro Level", "Content Direction", "tier list"]
+  "entries" : [
+    "Tar Sawang",
+    "Coffee for Worker",
+    "Claude Code",
+    "Wispr Flow",
+    "Take Home",
+    "Micro Level",
+    "Content Direction",
+    "tier list"
+  ],
+  "pairs" : [
+    {
+      "to_replace" : "Crosscode",
+      "replace_with" : "Claude code"
+    }
+  ]
 }
